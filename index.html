@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Zero Recap</title>
 
   <style>
@@ -14,7 +13,7 @@
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f6f4;
+      background: #f4f6f8;
       color: #222;
     }
 
@@ -43,12 +42,13 @@
       text-align: center;
       color: #777;
       margin-bottom: 25px;
+      font-size: 17px;
     }
 
     .upload {
       border: 2px dashed #aaa;
-      padding: 18px;
       border-radius: 18px;
+      padding: 22px 15px;
       text-align: center;
     }
 
@@ -90,12 +90,10 @@
       color: white;
       font-size: 18px;
       font-weight: bold;
-      cursor: pointer;
     }
 
     button:disabled {
       background: #999;
-      cursor: not-allowed;
     }
 
     .progress-box {
@@ -154,13 +152,7 @@
     }
 
     .error {
-      background: #fff1f2;
-      color: #b91c1c;
-      padding: 15px;
-      border-radius: 12px;
-      margin-top: 15px;
-      display: none;
-      line-height: 1.6;
+      color: #d32f2f;
     }
   </style>
 </head>
@@ -172,27 +164,29 @@
   <div class="card">
 
     <div class="logo">
-      🎬 Zero Recap
+      🚀 Zero Recap
     </div>
 
     <div class="subtitle">
       Video ကို AI Recap ပြုလုပ်ရန်
     </div>
 
+    <!-- VIDEO UPLOAD -->
     <div class="upload">
 
-      <strong>🎥 Video ရွေးပါ</strong>
+      <strong>🎬 Video ရွေးပါ</strong>
 
       <input
         id="videoInput"
         type="file"
-        accept="video/mp4,video/mov,video/quicktime,video/webm,video/x-matroska"
+        accept="video/*"
       >
 
       <video id="preview" controls></video>
 
     </div>
 
+    <!-- LANGUAGE -->
     <label>🌐 ဘာသာစကား</label>
 
     <select id="language">
@@ -200,17 +194,19 @@
       <option value="en">🇺🇸 English</option>
     </select>
 
+    <!-- VOICE -->
     <label>🎙️ အသံ</label>
 
     <select id="voice">
-      <option value="female">👩 အမျိုးသမီးအသံ</option>
-      <option value="male">👨 အမျိုးသားအသံ</option>
+      <option value="female">👩 မိန်းကလေးအသံ</option>
+      <option value="male">👨 ယောက်ျားလေးအသံ</option>
     </select>
 
-    <label>🎨 အကျဉ်းချုပ်ပုံစံ</label>
+    <!-- STYLE -->
+    <label>🎨 ပုံစံ</label>
 
     <select id="style">
-      <option value="natural">📄 သဘာဝပုံစံ</option>
+      <option value="natural">🗣️ သဘာဝပုံစံ</option>
       <option value="story">📖 Story ပုံစံ</option>
       <option value="news">📰 News ပုံစံ</option>
     </select>
@@ -219,6 +215,7 @@
       🚀 Recap Video ပြုလုပ်မယ်
     </button>
 
+    <!-- PROGRESS -->
     <div class="progress-box" id="progressBox">
 
       <div class="progress-info">
@@ -239,14 +236,13 @@
 
     </div>
 
-    <div class="error" id="errorBox"></div>
-
+    <!-- RESULT -->
     <div class="result" id="result">
 
       <h3>✅ Recap Video ပြီးပါပြီ</h3>
 
       <p>
-        မြန်မာဘာသာဖြင့် Video ကို ရယူနိုင်ပါပြီ။
+        ပြီးဆုံးပါပြီ။ အောက်ကခလုတ်ကနေ Video ကို ရယူနိုင်ပါတယ်။
       </p>
 
       <a
@@ -254,7 +250,7 @@
         class="download"
         href="#"
         target="_blank"
-        download
+        rel="noopener"
       >
         ⬇️ Video ရယူမယ်
       </a>
@@ -269,52 +265,62 @@
 <script>
 
   /*
-   * ==========================================
-   * ZERO RECAP FRONTEND
-   * ==========================================
-   *
-   * Backend:
-   * https://zero-recap.onrender.com
-   *
-   */
+    ================================
+    BACKEND API
+    ================================
+  */
 
   const API_BASE = "https://zero-recap.onrender.com";
 
 
-  // HTML Elements
-  const videoInput = document.getElementById("videoInput");
-  const preview = document.getElementById("preview");
+  /*
+    ================================
+    ELEMENTS
+    ================================
+  */
 
-  const language = document.getElementById("language");
-  const voice = document.getElementById("voice");
-  const style = document.getElementById("style");
+  const videoInput =
+    document.getElementById("videoInput");
 
-  const generateBtn = document.getElementById("generateBtn");
+  const preview =
+    document.getElementById("preview");
 
-  const progressBox = document.getElementById("progressBox");
-  const progressBar = document.getElementById("progressBar");
-  const progressText = document.getElementById("progressText");
-  const percent = document.getElementById("percent");
+  const generateBtn =
+    document.getElementById("generateBtn");
 
-  const status = document.getElementById("status");
+  const progressBox =
+    document.getElementById("progressBox");
 
-  const result = document.getElementById("result");
-  const downloadBtn = document.getElementById("downloadBtn");
+  const progressBar =
+    document.getElementById("progressBar");
 
-  const errorBox = document.getElementById("errorBox");
+  const percent =
+    document.getElementById("percent");
+
+  const progressText =
+    document.getElementById("progressText");
+
+  const statusText =
+    document.getElementById("status");
+
+  const result =
+    document.getElementById("result");
+
+  const downloadBtn =
+    document.getElementById("downloadBtn");
 
 
-  // ==========================================
-  // Video Preview
-  // ==========================================
+  /*
+    ================================
+    VIDEO PREVIEW
+    ================================
+  */
 
   videoInput.addEventListener("change", function () {
 
     const file = this.files[0];
 
     if (!file) {
-      preview.style.display = "none";
-      preview.removeAttribute("src");
       return;
     }
 
@@ -324,168 +330,177 @@
     preview.style.display = "block";
 
     result.style.display = "none";
-    errorBox.style.display = "none";
+
+    statusText.innerText =
+      "✅ Video ရွေးပြီးပါပြီ။";
+
   });
 
 
-  // ==========================================
-  // Progress
-  // ==========================================
+  /*
+    ================================
+    PROGRESS
+    ================================
+  */
 
   function setProgress(value, text) {
 
-    value = Math.max(0, Math.min(100, value));
-
     progressBar.style.width = value + "%";
-    percent.innerText = value + "%";
 
-    if (text) {
-      progressText.innerText = text;
-    }
+    percent.innerText =
+      value + "%";
+
+    progressText.innerText =
+      text;
+
   }
 
 
-  // ==========================================
-  // Error
-  // ==========================================
-
-  function showError(message) {
-
-    errorBox.innerText = "❌ " + message;
-    errorBox.style.display = "block";
-
-    progressBox.style.display = "none";
-
-    generateBtn.disabled = false;
-    generateBtn.innerText = "🚀 Recap Video ပြုလုပ်မယ်";
-  }
-
-
-  // ==========================================
-  // Main Recap Function
-  // ==========================================
+  /*
+    ================================
+    MAIN RECAP
+    ================================
+  */
 
   async function startRecap() {
 
-    const file = videoInput.files[0];
-
-    // Reset
-    errorBox.style.display = "none";
-    result.style.display = "none";
+    const file =
+      videoInput.files[0];
 
     if (!file) {
 
-      alert("⚠️ အရင်ဆုံး Video ရွေးပါ။");
+      alert(
+        "🎬 အရင်ဆုံး Video တစ်ခုရွေးပါ။"
+      );
 
       return;
     }
 
 
-    // Disable button
+    /*
+      UI START
+    */
+
     generateBtn.disabled = true;
 
-    progressBox.style.display = "block";
+    progressBox.style.display =
+      "block";
 
-    setProgress(5, "Video ကို ပြင်ဆင်နေသည်...");
+    result.style.display =
+      "none";
 
-    status.innerText =
-      "⏳ Video ကို Server သို့ ပို့နေသည်...";
+    setProgress(
+      5,
+      "Video ပြင်ဆင်နေသည်..."
+    );
 
 
     try {
 
-      // ======================================
-      // 1. Upload Video
-      // ======================================
+      /*
+        ==================================
+        1. UPLOAD VIDEO
+        ==================================
+      */
 
-      const formData = new FormData();
-
-      formData.append("file", file);
-
-
-      setProgress(10, "Video Upload လုပ်နေသည်...");
-
-
-      const uploadResponse = await fetch(
-        API_BASE + "/upload",
-        {
-          method: "POST",
-          body: formData
-        }
+      setProgress(
+        15,
+        "Video ကို Server သို့ Upload လုပ်နေသည်..."
       );
+
+      statusText.innerText =
+        "📤 Video Upload လုပ်နေသည်...";
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        file
+      );
+
+
+      const uploadResponse =
+        await fetch(
+          API_BASE + "/upload",
+          {
+            method: "POST",
+            body: formData
+          }
+        );
 
 
       if (!uploadResponse.ok) {
 
-        let errorText = "Video upload မအောင်မြင်ပါ။";
+        const errorText =
+          await uploadResponse.text();
 
-        try {
+        throw new Error(
+          "Video upload မအောင်မြင်ပါ။ " +
+          errorText
+        );
 
-          const errorData =
-            await uploadResponse.json();
-
-          if (errorData.detail) {
-            errorText = errorData.detail;
-          }
-
-        } catch (e) {}
-
-        throw new Error(errorText);
       }
 
 
       const uploadData =
         await uploadResponse.json();
 
-
-      console.log("Upload:", uploadData);
-
-
-      const videoId = uploadData.video_id;
+      const videoId =
+        uploadData.video_id;
 
 
       if (!videoId) {
+
         throw new Error(
-          "Server က video_id မပြန်ပေးပါ။"
+          "Server က video_id မပြန်ပါ။"
         );
+
       }
 
 
-      // ======================================
-      // 2. Extract Audio
-      // ======================================
-
-      setProgress(30, "Audio ထုတ်နေသည်...");
-
-      status.innerText =
-        "🎧 Video ထဲက Audio ကို ထုတ်နေသည်...";
-
-
-      const audioResponse = await fetch(
-        API_BASE + "/extract-audio/" + encodeURIComponent(videoId),
-        {
-          method: "POST"
-        }
+      console.log(
+        "Video ID:",
+        videoId
       );
+
+
+      /*
+        ==================================
+        2. EXTRACT AUDIO
+        ==================================
+      */
+
+      setProgress(
+        35,
+        "Audio ထုတ်နေသည်..."
+      );
+
+      statusText.innerText =
+        "🎵 Video ထဲက Audio ကို ထုတ်နေသည်...";
+
+
+      const audioResponse =
+        await fetch(
+          API_BASE +
+          "/extract-audio/" +
+          encodeURIComponent(videoId),
+          {
+            method: "POST"
+          }
+        );
 
 
       if (!audioResponse.ok) {
 
-        let errorText =
-          "Audio extraction မအောင်မြင်ပါ။";
+        const errorText =
+          await audioResponse.text();
 
-        try {
+        throw new Error(
+          "Audio extraction မအောင်မြင်ပါ။ " +
+          errorText
+        );
 
-          const errorData =
-            await audioResponse.json();
-
-          if (errorData.detail) {
-            errorText = errorData.detail;
-          }
-
-        } catch (e) {}
-
-        throw new Error(errorText);
       }
 
 
@@ -493,44 +508,48 @@
         await audioResponse.json();
 
 
-      console.log("Audio:", audioData);
-
-
-      // ======================================
-      // 3. Create Recap
-      // ======================================
-
-      setProgress(60, "AI Recap ပြုလုပ်နေသည်...");
-
-      status.innerText =
-        "🤖 AI က Video Recap ပြုလုပ်နေသည်...";
-
-
-      const recapResponse = await fetch(
-        API_BASE + "/create-recap/" + encodeURIComponent(videoId),
-        {
-          method: "POST"
-        }
+      console.log(
+        "Audio:",
+        audioData
       );
+
+
+      /*
+        ==================================
+        3. CREATE RECAP VIDEO
+        ==================================
+      */
+
+      setProgress(
+        60,
+        "AI Recap Video ပြုလုပ်နေသည်..."
+      );
+
+      statusText.innerText =
+        "🤖 AI က Recap Video ပြုလုပ်နေသည်...";
+
+
+      const recapResponse =
+        await fetch(
+          API_BASE +
+          "/create-recap/" +
+          encodeURIComponent(videoId),
+          {
+            method: "POST"
+          }
+        );
 
 
       if (!recapResponse.ok) {
 
-        let errorText =
-          "Recap Video ပြုလုပ်မရပါ။";
+        const errorText =
+          await recapResponse.text();
 
-        try {
+        throw new Error(
+          "Recap Video ပြုလုပ်မရပါ။ " +
+          errorText
+        );
 
-          const errorData =
-            await recapResponse.json();
-
-          if (errorData.detail) {
-            errorText = errorData.detail;
-          }
-
-        } catch (e) {}
-
-        throw new Error(errorText);
       }
 
 
@@ -538,99 +557,164 @@
         await recapResponse.json();
 
 
-      console.log("Recap:", recapData);
-
-
-      // ======================================
-      // 4. Get Download URL
-      // ======================================
-
-      setProgress(85, "Final Video ပြင်ဆင်နေသည်...");
-
-      status.innerText =
-        "🎬 Recap Video ကို ပြင်ဆင်ပြီးပါပြီ...";
-
-
-      let videoUrl = recapData.video_url;
+      console.log(
+        "Recap:",
+        recapData
+      );
 
 
       /*
-       * Backend က video_url ပြန်မပေးရင်
-       * ကိုယ်တိုင် /download/{video_id} ဆောက်မယ်
-       */
+        ==================================
+        4. DOWNLOAD URL
+        ==================================
+      */
 
-      if (!videoUrl) {
+      setProgress(
+        90,
+        "Final Video ပြင်ဆင်နေသည်..."
+      );
 
-        videoUrl =
+      statusText.innerText =
+        "⏳ Final Video ကို ပြင်ဆင်နေသည်...";
+
+
+      let downloadUrl = "";
+
+
+      /*
+        Backend က video_url ပြန်ရင်
+        အဲဒီ URL ကိုသုံးမယ်။
+      */
+
+      if (recapData.video_url) {
+
+        downloadUrl =
+          recapData.video_url;
+
+      }
+
+      /*
+        Backend က download_url ပြန်ရင်
+        အဲဒီ URL ကိုသုံးမယ်။
+      */
+
+      else if (recapData.download_url) {
+
+        downloadUrl =
+          recapData.download_url;
+
+      }
+
+      /*
+        URL မပြန်ရင် backend download route
+        ကို တိုက်ရိုက်သုံးမယ်။
+      */
+
+      else {
+
+        downloadUrl =
           API_BASE +
           "/download/" +
           encodeURIComponent(videoId);
 
       }
 
+
       /*
-       * Backend က relative URL
-       * /download/... ပြန်ပေးခဲ့ရင်
-       * API_BASE နဲ့ပေါင်းမယ်
-       */
+        Relative URL ဖြစ်ရင်
+        Backend domain ထည့်ပေးမယ်။
+      */
 
-      if (videoUrl.startsWith("/")) {
+      if (
+        downloadUrl.startsWith("/")
+      ) {
 
-        videoUrl =
-          API_BASE + videoUrl;
+        downloadUrl =
+          API_BASE +
+          downloadUrl;
 
       }
 
 
-      console.log("Final Video URL:", videoUrl);
+      console.log(
+        "Download URL:",
+        downloadUrl
+      );
 
 
-      // ======================================
-      // 5. Complete
-      // ======================================
+      /*
+        ==================================
+        COMPLETE
+        ==================================
+      */
 
-      setProgress(100, "ပြီးပါပြီ!");
+      setProgress(
+        100,
+        "Recap Video ပြီးပါပြီ!"
+      );
 
-      status.innerText =
-        "✅ Recap Video ပြုလုပ်ပြီးပါပြီ။";
+      statusText.innerText =
+        "✅ Recap Video အောင်မြင်စွာ ပြီးပါပြီ။";
 
 
-      downloadBtn.href = videoUrl;
+      /*
+        DOWNLOAD BUTTON
+      */
+
+      downloadBtn.href =
+        downloadUrl;
 
       downloadBtn.setAttribute(
         "download",
-        "zero-recap-" + videoId + ".mp4"
+        "zero-recap.mp4"
       );
 
 
-      result.style.display = "block";
+      result.style.display =
+        "block";
 
 
-      // Scroll to result
-      setTimeout(function () {
+      /*
+        Scroll result into view
+      */
 
-        result.scrollIntoView({
-          behavior: "smooth",
-          block: "center"
-        });
-
-      }, 300);
-
-
-      generateBtn.disabled = false;
-
-      generateBtn.innerText =
-        "🚀 Recap Video ပြန်လုပ်မယ်";
+      result.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
 
 
-    } catch (error) {
+    }
 
-      console.error("Recap Error:", error);
+    catch (error) {
 
-      showError(
-        error.message ||
-        "မသိသော Error တစ်ခု ဖြစ်နေပါသည်။"
+      console.error(
+        "Recap Error:",
+        error
       );
+
+
+      statusText.classList.add(
+        "error"
+      );
+
+
+      statusText.innerText =
+        "❌ Error: " +
+        error.message;
+
+
+      setProgress(
+        0,
+        "လုပ်ဆောင်မှု မအောင်မြင်ပါ"
+      );
+
+    }
+
+    finally {
+
+      generateBtn.disabled =
+        false;
 
     }
 
