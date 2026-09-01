@@ -248,138 +248,180 @@ button:disabled {
 
 <script>
 
-const videoInput =
-  document.getElementById("videoInput");
+const API_BASE = "https://zero-recap.onrender.com";
 
-const preview =
-  document.getElementById("preview");
-
-const generateBtn =
-  document.getElementById("generateBtn");
-
-const progressBox =
-  document.getElementById("progressBox");
-
-const progressBar =
-  document.getElementById("progressBar");
-
-const percent =
-  document.getElementById("percent");
-
-const statusText =
-  document.getElementById("status");
-
-const progressText =
-  document.getElementById("progressText");
-
-const result =
-  document.getElementById("result");
-
-const downloadBtn =
-  document.getElementById("downloadBtn");
+const videoInput = document.getElementById("videoInput");
+const preview = document.getElementById("preview");
+const generateBtn = document.getElementById("generateBtn");
+const progressBox = document.getElementById("progressBox");
+const progressBar = document.getElementById("progressBar");
+const percent = document.getElementById("percent");
+const statusText = document.getElementById("status");
+const progressText = document.getElementById("progressText");
+const result = document.getElementById("result");
+const downloadBtn = document.getElementById("downloadBtn");
 
 
 /* Video ရွေးတဲ့အခါ */
 
-videoInput.addEventListener("change", function() {
+videoInput.addEventListener("change", function () {
 
-  const file = this.files[0];
+    const file = this.files[0];
 
-  if (!file) return;
+    if (!file) return;
 
-  const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
 
-  preview.src = url;
-  preview.style.display = "block";
+    preview.src = url;
+    preview.style.display = "block";
 
-  result.style.display = "none";
+    result.style.display = "none";
 
-  statusText.innerText =
-    "✅ Video ရွေးပြီးပါပြီ။";
+    statusText.innerText =
+        "✅ Video ရွေးပြီးပါပြီ။";
 
 });
 
 
 /* Recap စတင် */
 
-function startRecap() {
+async function startRecap() {
 
-  const file = videoInput.files[0];
+    const file = videoInput.files[0];
 
-  if (!file) {
-
-    alert("⚠️ အရင်ဆုံး Video တစ်ခုရွေးပါ။");
-
-    return;
-  }
-
-  generateBtn.disabled = true;
-
-  progressBox.style.display = "block";
-
-  result.style.display = "none";
-
-  let progress = 0;
-
-  const fileSize =
-    file.size / (1024 * 1024);
-
-  let estimatedSeconds =
-    Math.max(10, Math.round(fileSize * 2));
-
-  statusText.innerText =
-    "⏳ AI က Video ကို စစ်ဆေးနေပါသည်...";
-
-  const timer =
-    setInterval(function() {
-
-      progress += 2;
-
-      if (progress >= 100) {
-
-        progress = 100;
-
-        clearInterval(timer);
-
-        progressText.innerText =
-          "ပြီးပါပြီ";
-
-        statusText.innerText =
-          "⚠️ Backend မချိတ်ရသေးပါ။ အခုက Progress UI စမ်းသပ်မှုသာ ဖြစ်ပါတယ်။";
-
-        generateBtn.disabled = false;
-
+    if (!file) {
+        alert("⚠️ အရင်ဆုံး Video တစ်ခုရွေးပါ။");
         return;
-      }
+    }
 
-      progressBar.style.width =
-        progress + "%";
+    generateBtn.disabled = true;
+    progressBox.style.display = "block";
+    result.style.display = "none";
 
-      percent.innerText =
-        progress + "%";
+    progressBar.style.width = "5%";
+    percent.innerText = "5%";
+    progressText.innerText = "Video Upload လုပ်နေသည်...";
+    statusText.innerText = "⏳ Video ကို Server သို့ ပို့နေပါသည်...";
 
-      const remaining =
-        Math.max(
-          1,
-          Math.round(
-            estimatedSeconds *
-            (100 - progress) / 100
-          )
+    try {
+
+        /* 1. Upload */
+
+        const formData = new FormData();
+
+        formData.append("file", file);
+
+        const uploadResponse = await fetch(
+            API_BASE + "/upload",
+            {
+                method: "POST",
+                body: formData
+            }
         );
 
-      progressText.innerText =
-        "AI ပြုလုပ်နေသည်...";
+        if (!uploadResponse.ok) {
+            throw new Error("Video upload မအောင်မြင်ပါ");
+        }
 
-      statusText.innerText =
-        "⏱️ ခန့်မှန်းပြီးစီးရန် " +
-        remaining +
-        " စက္ကန့်ခန့်";
+        const uploadData = await uploadResponse.json();
 
-    }, 300);
+        const videoId = uploadData.video_id;
+
+        console.log("Video ID:", videoId);
+
+
+        /* 2. Extract Audio */
+
+        progressBar.style.width = "30%";
+        percent.innerText = "30%";
+        progressText.innerText = "Audio ထုတ်နေသည်...";
+        statusText.innerText =
+            "🎵 Video ထဲက အသံကို ထုတ်နေပါသည်...";
+
+        const audioResponse = await fetch(
+            API_BASE + "/extract-audio/" + videoId,
+            {
+                method: "POST"
+            }
+        );
+
+        if (!audioResponse.ok) {
+            throw new Error("Audio extraction မအောင်မြင်ပါ");
+        }
+
+        const audioData = await audioResponse.json();
+
+        console.log("Audio:", audioData);
+
+
+        /* 3. Create Recap */
+
+        progressBar.style.width = "60%";
+        percent.innerText = "60%";
+        progressText.innerText = "AI Recap ပြုလုပ်နေသည်...";
+        statusText.innerText =
+            "🤖 AI က Video ကို Recap ပြုလုပ်နေပါသည်...";
+
+        const recapResponse = await fetch(
+            API_BASE + "/create-recap/" + videoId,
+            {
+                method: "POST"
+            }
+        );
+
+        if (!recapResponse.ok) {
+            throw new Error("Recap မပြုလုပ်နိုင်ပါ");
+        }
+
+        const recapData = await recapResponse.json();
+
+        console.log("Recap:", recapData);
+
+
+        /* 4. Complete */
+
+        progressBar.style.width = "100%";
+        percent.innerText = "100%";
+        progressText.innerText = "ပြီးပါပြီ";
+
+        statusText.innerText =
+            "✅ Recap ပြုလုပ်ပြီးပါပြီ။";
+
+        /*
+         * Backend က final video URL ပြန်ပေးလာရင်
+         * ဒီနေရာမှာ Download link ထည့်မယ်။
+         */
+
+        if (recapData.video_url) {
+
+            downloadBtn.href = recapData.video_url;
+
+            result.style.display = "block";
+
+        } else {
+
+            statusText.innerText =
+                "⚠️ Backend ရဲ့ AI Recap အပိုင်း မပြီးသေးပါ။ Upload နဲ့ Audio extraction အလုပ်လုပ်နေပါပြီ။";
+
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        statusText.innerText =
+            "❌ Error: " + error.message;
+
+        progressText.innerText =
+            "လုပ်ဆောင်မှု မအောင်မြင်ပါ";
+
+    }
+
+    generateBtn.disabled = false;
 
 }
 
-</script>
+          </script>
 
 </body>
 </html>
