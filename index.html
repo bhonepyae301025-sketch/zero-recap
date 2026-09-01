@@ -1,1 +1,385 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<title>Zero Recap</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+  color: #222;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 18px;
+}
+
+.card {
+  background: white;
+  border-radius: 22px;
+  padding: 22px;
+  margin-top: 15px;
+  box-shadow: 0 5px 25px rgba(0,0,0,.08);
+}
+
+.logo {
+  text-align: center;
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #777;
+  margin-bottom: 25px;
+}
+
+.upload {
+  border: 2px dashed #aaa;
+  border-radius: 18px;
+  padding: 22px 15px;
+  text-align: center;
+}
+
+input[type="file"] {
+  width: 100%;
+  margin-top: 15px;
+}
+
+video {
+  width: 100%;
+  border-radius: 15px;
+  margin-top: 15px;
+  display: none;
+}
+
+label {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+select {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  background: white;
+}
+
+button {
+  width: 100%;
+  padding: 16px;
+  margin-top: 25px;
+  border: none;
+  border-radius: 14px;
+  background: #16803c;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+button:disabled {
+  background: #999;
+}
+
+.progress-box {
+  display: none;
+  margin-top: 25px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.progress {
+  width: 100%;
+  height: 14px;
+  background: #e5e7eb;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  background: #16803c;
+  border-radius: 20px;
+  transition: width .4s;
+}
+
+.status {
+  text-align: center;
+  margin-top: 15px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.result {
+  display: none;
+  margin-top: 25px;
+  padding: 18px;
+  background: #f0fdf4;
+  border-radius: 15px;
+  text-align: center;
+}
+
+.download {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 12px 20px;
+  background: #16803c;
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card">
+
+    <div class="logo">
+      🎬 Zero Recap
+    </div>
+
+    <div class="subtitle">
+      Video ကို မြန်မာအသံဖြင့် Recap ပြုလုပ်ရန်
+    </div>
+
+    <div class="upload">
+
+      🎥 <strong>Video ထည့်ပါ</strong>
+
+      <input
+        id="videoInput"
+        type="file"
+        accept="video/*"
+      >
+
+      <video id="preview" controls></video>
+
+    </div>
+
+    <label>🗣️ ဘာသာစကား</label>
+
+    <select id="language">
+      <option value="my">🇲🇲 မြန်မာ</option>
+    </select>
+
+    <label>🎙️ အသံ</label>
+
+    <select id="voice">
+      <option value="female">👩 အမျိုးသမီးအသံ</option>
+      <option value="male">👨 အမျိုးသားအသံ</option>
+    </select>
+
+    <label>🎭 အသံပုံစံ</label>
+
+    <select id="style">
+      <option value="natural">သဘာဝအသံ</option>
+      <option value="story">ဇာတ်လမ်းပြောသံ</option>
+      <option value="news">သတင်းပြောသံ</option>
+    </select>
+
+    <button id="generateBtn" onclick="startRecap()">
+      🚀 မြန်မာ Recap Video ပြုလုပ်မယ်
+    </button>
+
+    <div class="progress-box" id="progressBox">
+
+      <div class="progress-info">
+        <span id="progressText">လုပ်ဆောင်နေသည်...</span>
+        <strong id="percent">0%</strong>
+      </div>
+
+      <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <div class="status" id="status">
+        ⏳ Video ကို စစ်ဆေးနေပါသည်...
+      </div>
+
+    </div>
+
+    <div class="result" id="result">
+
+      <h3>✅ Recap Video ပြီးပါပြီ</h3>
+
+      <p>
+        မြန်မာအသံပါသော Video ကို ရယူနိုင်ပါပြီ။
+      </p>
+
+      <a
+        id="downloadBtn"
+        class="download"
+        href="#"
+        download="zero-recap.mp4"
+      >
+        ⬇️ Video ရယူမယ်
+      </a>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+const videoInput =
+  document.getElementById("videoInput");
+
+const preview =
+  document.getElementById("preview");
+
+const generateBtn =
+  document.getElementById("generateBtn");
+
+const progressBox =
+  document.getElementById("progressBox");
+
+const progressBar =
+  document.getElementById("progressBar");
+
+const percent =
+  document.getElementById("percent");
+
+const statusText =
+  document.getElementById("status");
+
+const progressText =
+  document.getElementById("progressText");
+
+const result =
+  document.getElementById("result");
+
+const downloadBtn =
+  document.getElementById("downloadBtn");
+
+
+/* Video ရွေးတဲ့အခါ */
+
+videoInput.addEventListener("change", function() {
+
+  const file = this.files[0];
+
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+
+  preview.src = url;
+  preview.style.display = "block";
+
+  result.style.display = "none";
+
+  statusText.innerText =
+    "✅ Video ရွေးပြီးပါပြီ။";
+
+});
+
+
+/* Recap စတင် */
+
+function startRecap() {
+
+  const file = videoInput.files[0];
+
+  if (!file) {
+
+    alert("⚠️ အရင်ဆုံး Video တစ်ခုရွေးပါ။");
+
+    return;
+  }
+
+  generateBtn.disabled = true;
+
+  progressBox.style.display = "block";
+
+  result.style.display = "none";
+
+  let progress = 0;
+
+  const fileSize =
+    file.size / (1024 * 1024);
+
+  let estimatedSeconds =
+    Math.max(10, Math.round(fileSize * 2));
+
+  statusText.innerText =
+    "⏳ AI က Video ကို စစ်ဆေးနေပါသည်...";
+
+  const timer =
+    setInterval(function() {
+
+      progress += 2;
+
+      if (progress >= 100) {
+
+        progress = 100;
+
+        clearInterval(timer);
+
+        progressText.innerText =
+          "ပြီးပါပြီ";
+
+        statusText.innerText =
+          "⚠️ Backend မချိတ်ရသေးပါ။ အခုက Progress UI စမ်းသပ်မှုသာ ဖြစ်ပါတယ်။";
+
+        generateBtn.disabled = false;
+
+        return;
+      }
+
+      progressBar.style.width =
+        progress + "%";
+
+      percent.innerText =
+        progress + "%";
+
+      const remaining =
+        Math.max(
+          1,
+          Math.round(
+            estimatedSeconds *
+            (100 - progress) / 100
+          )
+        );
+
+      progressText.innerText =
+        "AI ပြုလုပ်နေသည်...";
+
+      statusText.innerText =
+        "⏱️ ခန့်မှန်းပြီးစီးရန် " +
+        remaining +
+        " စက္ကန့်ခန့်";
+
+    }, 300);
+
+}
+
+</script>
+
+</body>
+</html>
