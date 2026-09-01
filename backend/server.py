@@ -18,11 +18,46 @@ app.add_middleware(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+
 UPLOAD_DIR = BASE_DIR / "uploads"
 OUTPUT_DIR = BASE_DIR / "outputs"
 
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_ffmpeg():
+    """
+    Render မှာ FFmpeg executable ရှိရင် အဲဒါကိုသုံးမယ်။
+    မရှိရင် imageio-ffmpeg ကနေ FFmpeg ရယူမယ်။
+    """
+
+    system_ffmpeg = "ffmpeg"
+
+    try:
+        result = subprocess.run(
+            [system_ffmpeg, "-version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=10
+        )
+
+        if result.returncode == 0:
+            return system_ffmpeg
+
+    except Exception:
+        pass
+
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="FFmpeg မတွေ့ပါ။ requirements.txt ထဲမှာ imageio-ffmpeg ပါကြောင်းစစ်ပါ။"
+        )
 
 
 @app.get("/")
@@ -36,73 +71,138 @@ def home():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
-
-
-@app.post("/upload")
-async def upload_video(file: UploadFile = File(...)):
-    allowed = {
-        "video/mp4",
-        "video/mov",
-        "video/quicktime",
-        "video/webm",
-        "video/x-matroska"
+    return {
+        "status": "ok"
     }
 
-    if file.content_type not in allowed:
+
+# ==========================================
+# UPLOAD
+# ==========================================
+
+@app.post("/upload")
+async def upload_video(
+    file: UploadFile = File(...)
+):
+
+    if not file.filename:
         raise HTTPException(
             status_code=400,
-            detail="Please upload a supported video file."
+            detail="Video file မပါပါ။"
+        )
+
+    allowed_extensions = {
+        ".mp4",
+        ".mov",
+        ".webm",
+        ".mkv",
+        ".avi"
+    }
+
+    extension = Path(
+        file.filename
+    ).suffix.lower()
+
+    if extension not in allowed_extensions:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Supported video format မဟုတ်ပါ။"
         )
 
     video_id = str(uuid.uuid4())
 
-    extension = Path(file.filename or "video.mp4").suffix.lower()
+    input_path = (
+        UPLOAD_DIR /
+        f"{video_id}{extension}"
+    )
 
-    if not extension:
-        extension = ".mp4"
+    try:
 
-    input_path = UPLOAD_DIR / f"{video_id}{extension}"
+        with open(
+            input_path,
+            "wb"
+        ) as buffer:
 
-    with open(input_path, "wb") as buffer:
-        while True:
-            chunk = await file.read(1024 * 1024)
+            while True:
 
-            if not chunk:
-                break
+                chunk = await file.read(
+                    1024 * 1024
+                )
 
-            buffer.write(chunk)
+                if not chunk:
+                    break
+
+                buffer.write(chunk)
+
+    except Exception as e:
+
+        if input_path.exists():
+            input_path.unlink()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Upload failed: {str(e)}"
+        )
 
     return {
         "success": True,
         "video_id": video_id,
-        "filename": input_path.name,
-        "message": "Video uploaded successfully."
+        "filename": input_path.name
     }
 
 
-@app.post("/extract-audio/{video_id}")
-def extract_audio(video_id: str):
+# ==========================================
+# FIND VIDEO
+# ==========================================
 
-    matches = list(UPLOAD_DIR.glob(f"{video_id}.*"))
+def find_video(video_id: str):
+
+    matches = list(
+        UPLOAD_DIR.glob(
+            f"{video_id}.*"
+        )
+    )
 
     if not matches:
+
         raise HTTPException(
             status_code=404,
             detail="Video not found."
         )
 
-    input_path = matches[0]
+    return matches[0]
 
-    audio_path = OUTPUT_DIR / f"{video_id}.mp3"
+
+# ==========================================
+# EXTRACT AUDIO
+# ==========================================
+
+@app.post("/extract-audio/{video_id}")
+def extract_audio(
+    video_id: str
+):
+
+    input_path = find_video(video_id)
+
+    audio_path = (
+        OUTPUT_DIR /
+        f"{video_id}.mp3"
+    )
+
+    ffmpeg = get_ffmpeg()
 
     command = [
-        "ffmpeg",
+        ffmpeg,
         "-y",
         "-i",
         str(input_path),
         "-vn",
-        "-acodec",
+        "-ac",
+        "2",
+        "-ar",
+        "44100",
+        "-codec:a",
         "libmp3lame",
         "-q:a",
         "4",
@@ -110,144 +210,206 @@ def extract_audio(video_id: str):
     ]
 
     try:
-        subprocess.run(
+
+        process = subprocess.run(
             command,
-            check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True
         )
 
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"FFmpeg error: {str(e)}"
+        )
+
+    if process.returncode != 0:
+
+        print(process.stderr)
+
         raise HTTPException(
             status_code=500,
             detail="Audio extraction failed."
         )
 
+    if not audio_path.exists():
+
+        raise HTTPException(
+            status_code=500,
+            detail="Audio file မထွက်လာပါ။"
+        )
+
     return {
         "success": True,
         "video_id": video_id,
-        "audio": f"/audio/{video_id}"
+        "audio_url": f"/audio/{video_id}"
     }
 
 
-@app.get("/audio/{video_id}")
-def get_audio(video_id: str):
+# ==========================================
+# AUDIO
+# ==========================================
 
-    audio_path = OUTPUT_DIR / f"{video_id}.mp3"
+@app.get("/audio/{video_id}")
+def get_audio(
+    video_id: str
+):
+
+    audio_path = (
+        OUTPUT_DIR /
+        f"{video_id}.mp3"
+    )
 
     if not audio_path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Audio not found."
         )
 
     return FileResponse(
-        audio_path,
+        path=audio_path,
         media_type="audio/mpeg",
         filename=audio_path.name
     )
 
 
-@app.get("/video/{video_id}")
-def get_video(video_id: str):
-
-    matches = list(UPLOAD_DIR.glob(f"{video_id}.*"))
-
-    if not matches:
-        raise HTTPException(
-            status_code=404,
-            detail="Video not found."
-        )
-
-    return FileResponse(
-        matches[0],
-        media_type="video/mp4"
-    )
-
+# ==========================================
+# CREATE RECAP VIDEO
+# ==========================================
 
 @app.post("/create-recap/{video_id}")
-def create_recap(video_id: str):
+def create_recap(
+    video_id: str
+):
 
-    matches = list(UPLOAD_DIR.glob(f"{video_id}.*"))
+    input_path = find_video(video_id)
 
-    if not matches:
-        raise HTTPException(
-            status_code=404,
-            detail="Video not found."
-        )
+    recap_path = (
+        OUTPUT_DIR /
+        f"{video_id}_recap.mp4"
+    )
 
-    input_path = matches[0]
+    ffmpeg = get_ffmpeg()
 
-    recap_path = OUTPUT_DIR / f"{video_id}_recap.mp4"
-
-    # Create an actual output video.
-    # This currently makes a playable recap from the uploaded video.
     command = [
-        "ffmpeg",
+        ffmpeg,
         "-y",
         "-i",
         str(input_path),
+
+        "-map",
+        "0:v:0",
+
+        "-map",
+        "0:a:0?",
+
         "-c:v",
         "libx264",
+
         "-preset",
         "veryfast",
+
         "-crf",
-        "23",
+        "28",
+
         "-c:a",
         "aac",
+
+        "-b:a",
+        "128k",
+
         "-movflags",
         "+faststart",
+
         str(recap_path)
     ]
 
     try:
-        subprocess.run(
+
+        process = subprocess.run(
             command,
-            check=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True
         )
 
-    except subprocess.CalledProcessError as e:
-        error_message = e.stderr.decode(
-            "utf-8",
-            errors="ignore"
-        )
+    except Exception as e:
 
         raise HTTPException(
             status_code=500,
-            detail=f"Recap video creation failed: {error_message[-1000:]}"
+            detail=f"Recap processing error: {str(e)}"
+        )
+
+    if process.returncode != 0:
+
+        print(process.stderr)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Recap Video ပြုလုပ်မအောင်မြင်ပါ။"
         )
 
     if not recap_path.exists():
+
         raise HTTPException(
             status_code=500,
-            detail="Recap video was not created."
+            detail="Recap MP4 file မထွက်လာပါ။"
         )
 
     return {
         "success": True,
         "video_id": video_id,
         "status": "completed",
-        "message": "Recap video created successfully.",
+        "video_url": f"/download/{video_id}",
         "download_url": f"/download/{video_id}",
-        "video_url": f"/download/{video_id}"
+        "message": "Recap Video ပြီးပါပြီ။"
     }
 
 
-@app.get("/download/{video_id}")
-def download_recap(video_id: str):
+# ==========================================
+# DOWNLOAD FINAL RECAP
+# ==========================================
 
-    recap_path = OUTPUT_DIR / f"{video_id}_recap.mp4"
+@app.get("/download/{video_id}")
+def download_recap(
+    video_id: str
+):
+
+    recap_path = (
+        OUTPUT_DIR /
+        f"{video_id}_recap.mp4"
+    )
 
     if not recap_path.exists():
+
         raise HTTPException(
             status_code=404,
-            detail="Recap video not found."
+            detail="Recap Video မတွေ့ပါ။"
         )
 
     return FileResponse(
-        recap_path,
+        path=recap_path,
         media_type="video/mp4",
-        filename=f"zero_recap_{video_id}.mp4"
+        filename="zero-recap.mp4",
+        content_disposition_type="attachment"
+    )
+
+
+# ==========================================
+# VIEW ORIGINAL VIDEO
+# ==========================================
+
+@app.get("/video/{video_id}")
+def get_video(
+    video_id: str
+):
+
+    input_path = find_video(video_id)
+
+    return FileResponse(
+        path=input_path,
+        media_type="video/mp4"
     )
