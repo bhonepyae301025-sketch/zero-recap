@@ -3,3 +3,5 @@ uvicorn
 python-multipart
 imageio-ffmpeg
 faster-whisper
+httpx
+edge-tts
